@@ -1,0 +1,10 @@
+<%- include("partials/head") %>
+<section class="analytics-intro"><div><p class="eyebrow">TIME BALANCE</p><h2>時間の使い方を、少しだけ丁寧に。</h2><p>予定に登録した時間をカテゴリ別に集計しています。</p></div></section>
+<div class="analytics-grid">
+  <% [["今日",daily],["今週",weekly],["今月",monthly]].forEach(([label,data],index) => { const total = Object.values(data).reduce((a,b)=>a+b,0); %>
+  <section class="panel analysis-card <%= index === 1 ? "featured" : "" %>"><div class="panel-head"><div><p class="eyebrow"><%= index===0?"DAILY":index===1?"WEEKLY":"MONTHLY" %></p><h2><%= label %>の活動時間</h2></div></div>
+    <div class="big-number"><strong><%= total.toFixed(1) %></strong><span>時間</span></div>
+    <div class="bar-chart"><% Object.entries(data).forEach(([key,value]) => { %><div><span><i style="--color:<%= categoryColors[key] %>"></i><%= key %></span><div class="bar"><i style="--color:<%= categoryColors[key] %>;width:<%= total ? value/total*100 : 0 %>%"></i></div><strong><%= value.toFixed(1) %>h</strong></div><% }) %></div>
+  </section><% }) %>
+</div>
+<%- include("partials/foot") %>

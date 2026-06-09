@@ -1,0 +1,28 @@
+<%- include("partials/head") %>
+<div class="split-layout">
+  <section class="panel form-panel">
+    <div class="panel-head"><div><p class="eyebrow">CLASS</p><h2><%= editItem ? "授業を編集" : "授業を登録" %></h2></div></div>
+    <form method="post" action="/timetable" class="form-grid">
+      <input type="hidden" name="id" value="<%= editItem?.id || '' %>">
+      <label class="wide">科目名<input required name="subject" value="<%= editItem?.subject || '' %>" placeholder="例：Webアプリケーション開発"></label>
+      <label>曜日<select name="weekday"><% weekdays.forEach(day => { %><option <%= editItem?.weekday === day ? "selected" : "" %>><%= day %></option><% }) %></select></label>
+      <% const selectedStart = Number(editItem?.startPeriod || editItem?.period || 1); const selectedEnd = Number(editItem?.endPeriod || editItem?.period || selectedStart); %>
+      <label>開始時限<select name="startPeriod" data-class-start-period><% schoolPeriods.forEach(item => { %><option value="<%= item.number %>" <%= selectedStart === item.number ? "selected" : "" %>><%= item.number %>限（<%= item.startTime %>）</option><% }) %></select></label>
+      <label>終了時限<select name="endPeriod" data-class-end-period><% schoolPeriods.forEach(item => { %><option value="<%= item.number %>" <%= selectedEnd === item.number ? "selected" : "" %>><%= item.number %>限（<%= item.endTime %>まで）</option><% }) %></select></label>
+      <label>教室<input name="room" value="<%= editItem?.room || '' %>" placeholder="例：講義室204"></label>
+      <label>担当教員<input name="teacher" value="<%= editItem?.teacher || '' %>" placeholder="例：山田先生"></label>
+      <label class="wide">メモ<textarea name="memo" placeholder="補足情報"><%= editItem?.memo || '' %></textarea></label>
+      <%- include("partials/form-actions", { cancel: "/timetable" }) %>
+    </form>
+  </section>
+  <section class="panel wide-panel">
+    <div class="panel-head"><div><p class="eyebrow">WEEKLY</p><h2>週間時間割</h2><small class="drag-help">授業カードをドラッグすると、曜日・時限を移動できます。</small></div></div>
+    <div class="timetable">
+      <div class="corner"></div><% weekdays.slice(0,6).forEach(day => { %><strong class="day-head"><%= day %></strong><% }) %>
+      <% schoolPeriods.forEach(period => { %><strong class="period-head"><%= period.number %><small><%= period.startTime %><br><%= period.endTime %></small></strong><% weekdays.slice(0,6).forEach(day => { const lesson = classes.find(x => { const start = Number(x.startPeriod || x.period); const end = Number(x.endPeriod || x.period); return x.weekday === day && period.number >= start && period.number <= end; }); const isStart = lesson && period.number === Number(lesson.startPeriod || lesson.period); %>
+        <div class="class-cell <%= lesson && !isStart ? 'continued' : '' %>" data-drop-weekday="<%= day %>" data-drop-period="<%= period.number %>"><% if (lesson) { %><a href="/timetable?edit=<%= lesson.id %>" <% if (isStart) { %>draggable="true" data-drag-class="<%= lesson.id %>"<% } %>><strong><%= lesson.subject %></strong><small><%= isStart ? `${lesson.room || ''}${Number(lesson.endPeriod || lesson.period) > Number(lesson.startPeriod || lesson.period) ? ` · ${lesson.startPeriod || lesson.period}〜${lesson.endPeriod || lesson.period}限` : ''}` : '継続' %></small></a><% } %></div>
+      <% }) }) %>
+    </div>
+  </section>
+</div>
+<%- include("partials/foot") %>

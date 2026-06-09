@@ -1,0 +1,46 @@
+<%- include("partials/head") %>
+<div class="split-layout events-layout">
+  <section class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">SCHEDULE</p><h2><%= editItem ? "予定を編集" : "予定を登録" %></h2></div></div>
+    <% const startParts = localInputParts(editItem?.startAt); const rawEndParts = localInputParts(editItem?.endAt); const startTime = snapTime(startParts.time, scheduleStep, "floor"); const nextDay = Boolean(editItem && rawEndParts.date !== startParts.date); const endTime = editItem ? snapTime(rawEndParts.time, scheduleStep, "ceil") : "10:00"; %>
+    <form method="post" action="/events" class="form-grid">
+      <input type="hidden" name="id" value="<%= editItem?.id || '' %>">
+      <label class="wide">タイトル<input required name="title" data-event-title value="<%= editItem?.title || '' %>" placeholder="例：カフェのシフト"></label>
+      <label class="wide">カテゴリ<select name="category" data-event-category><% categories.forEach(x => { %><option <%= editItem?.category === x ? "selected" : "" %>><%= x %></option><% }) %></select></label>
+      <label class="wide">日付<input required type="date" name="eventDate" value="<%= startParts.date %>"></label>
+      <% const startMinutes = Number(startTime.slice(0,2))*60 + Number(startTime.slice(3,5)); const rawEndMinutes = endTime === "24:00" ? 1440 : Number(endTime.slice(0,2))*60 + Number(endTime.slice(3,5)); const endMinutes = rawEndMinutes + (nextDay ? 1440 : 0); const durationMinutes = endMinutes - startMinutes; %>
+      <label class="wide start-time-field">開始時刻<input required type="time" step="<%= scheduleStep * 60 %>" name="startTime" data-event-start value="<%= startTime %>"><small><%= scheduleStep %>分単位に自動調整されます</small></label>
+      <input type="hidden" name="endTime" data-event-end value="<%= endTime %>">
+      <input type="hidden" name="nextDay" data-event-next-day value="<%= nextDay ? '1' : '0' %>">
+      <div class="duration-picker wide" data-duration-picker data-duration="<%= durationMinutes %>">
+        <div class="input-section-title"><strong>所要時間</strong><span>終了予定 <b data-end-summary><%= endTime %></b></span></div>
+        <div class="duration-buttons"><% [[30,"30分"],[60,"1時間"],[90,"1.5時間"],[120,"2時間"],[240,"4時間"]].forEach(([minutes,label]) => { %><button type="button" class="duration-button <%= durationMinutes === minutes ? 'active' : '' %>" data-duration="<%= minutes %>"><%= label %></button><% }) %></div>
+        <div class="time-adjusters"><button type="button" data-adjust-duration="-<%= scheduleStep %>">− <%= scheduleStep %>分</button><strong data-duration-summary></strong><button type="button" data-adjust-duration="<%= scheduleStep %>">＋ <%= scheduleStep %>分</button></div>
+        <label class="next-day-toggle"><input type="checkbox" data-next-day-toggle <%= nextDay ? "checked" : "" %>><span>翌日に終了する</span></label>
+      </div>
+      <div class="quick-times wide">
+        <div class="input-section-title"><strong>よく使う予定</strong><span>タイトル・カテゴリ・時刻を一括入力</span></div>
+        <div class="quick-time-buttons"><% quickTimes.forEach(item => { const overnight = item.endTime <= item.startTime; %><button type="button" data-time-preset="<%= item.startTime %>,<%= item.endTime %>" data-preset-title="<%= item.title %>" data-preset-category="<%= item.category %>"><strong><%= item.title %></strong><small><%= item.category %> · <%= item.startTime %>〜<%= overnight ? "翌" : "" %><%= item.endTime %></small></button><% }) %></div>
+      </div>
+      <div class="day-timeline-wrap wide" data-day-timeline data-step="<%= scheduleStep %>">
+        <div class="timeline-title"><strong>1日のタイムバー</strong><span>バーをドラッグして時刻を調整</span></div>
+        <div class="day-timeline-labels"><% [0,3,6,9,12,15,18,21,24].forEach(hour => { %><span style="left:<%= hour/24*100 %>%"><%= hour %>時</span><% }) %></div>
+        <div class="day-timeline-track" data-day-track>
+          <div class="day-time-block" data-day-block>
+            <button type="button" class="time-handle start" data-time-handle="start" aria-label="開始時刻を変更"></button>
+            <span data-time-label></span>
+            <button type="button" class="time-handle end" data-time-handle="end" aria-label="終了時刻を変更"></button>
+          </div>
+        </div>
+        <div class="next-day-timeline" data-next-day-timeline><span>翌日</span><div class="next-day-track"><div class="next-day-block" data-next-day-block></div></div></div>
+        <small><%= scheduleStep %>分単位で調整されます。刻み幅は設定画面から変更できます。</small>
+      </div>
+      <label class="wide">メモ<textarea name="memo"><%= editItem?.memo || '' %></textarea></label>
+      <%- include("partials/form-actions", { cancel: "/events" }) %>
+    </form>
+  </section>
+  <section class="panel wide-panel"><div class="panel-head"><div><p class="eyebrow">ALL SCHEDULES</p><h2>予定一覧</h2></div><span class="count"><%= items.length %>件</span></div>
+    <% if (!items.length) { %><%- include("partials/empty", { message: "予定はまだ登録されていません" }) %><% } %>
+    <div class="management-list"><% items.forEach(item => { const overnight = item.startAt.slice(0,10) !== item.endAt.slice(0,10); %><article><div class="category-mark" style="--color:<%= categoryColors[item.category] %>"></div><div class="grow"><span class="tag" style="--tag:<%= categoryColors[item.category] %>"><%= item.category %></span><h3><%= item.title %></h3><p><%= formatDate(item.startAt) %>　<%= formatTime(item.startAt) %>〜<%= overnight ? "翌 " : "" %><%= formatTime(item.endAt) %></p><small><%= item.memo %></small></div><%- include("partials/item-actions", { editUrl: `/events?edit=${item.id}`, collection: "events", id: item.id }) %></article><% }) %></div>
+  </section>
+</div>
+<%- include("partials/foot") %>

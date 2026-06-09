@@ -1,0 +1,15 @@
+{
+  "name": "student-life-manager",
+  "version": "1.1.0",
+  "description": "学生生活の予定・課題・時間をまとめて管理するWebアプリ",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^5.1.0"
+  }
+}

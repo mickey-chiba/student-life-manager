@@ -1,0 +1,45 @@
+<%- include("partials/head") %>
+<section class="hero">
+  <div><p class="eyebrow">GOOD DAY</p><h2>今日も、自分らしいペースで。</h2><p>授業と予定を確認して、気持ちよく一日を始めましょう。</p></div>
+  <a class="button light" href="/events">＋ 予定を追加</a>
+</section>
+
+<section class="stats-grid">
+  <article class="stat-card cobalt"><span>今日の授業</span><strong><%= todayClasses.length %></strong><small>コマ</small></article>
+  <article class="stat-card coral"><span>直近の課題</span><strong><%= upcomingAssignments.length %></strong><small>件</small></article>
+  <article class="stat-card amber"><span>今日の予定</span><strong><%= todayEvents.length %></strong><small>件</small></article>
+  <article class="stat-card mint"><span>今週の活動</span><strong><%= Object.values(totals).reduce((a,b) => a+b, 0).toFixed(1) %></strong><small>時間</small></article>
+</section>
+
+<div class="dashboard-grid">
+  <section class="panel span-2">
+    <div class="panel-head"><div><p class="eyebrow">TODAY</p><h2>今日のスケジュール</h2></div><a href="/calendar">カレンダーを見る →</a></div>
+    <div class="timeline">
+      <% const schedule = [
+        ...todayClasses.map(x => ({ time: `${x.startPeriod || x.period}${Number(x.endPeriod || x.period) > Number(x.startPeriod || x.period) ? `〜${x.endPeriod}` : ""}限`, title: x.subject, sub: `${x.room} · ${x.teacher}`, color: "#5267df" })),
+        ...todayEvents.map(x => ({ time: formatTime(x.startAt), title: x.title, sub: `${x.category} · ${formatTime(x.endAt)}まで`, color: categoryColors[x.category] }))
+      ]; %>
+      <% if (!schedule.length) { %><%- include("partials/empty", { message: "今日の予定はありません" }) %><% } %>
+      <% schedule.forEach(item => { %><div class="timeline-item"><time><%= item.time %></time><i style="--dot:<%= item.color %>"></i><div><strong><%= item.title %></strong><small><%= item.sub %></small></div></div><% }) %>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><div><p class="eyebrow">THIS WEEK</p><h2>時間の使い方</h2></div><a href="/analytics">詳細 →</a></div>
+    <div class="donut-wrap">
+      <% const total = Object.values(totals).reduce((a,b) => a+b, 0); %>
+      <div class="donut" style="--values:<% let acc=0; Object.entries(totals).filter(([,v])=>v).forEach(([k,v],i,arr)=>{ const start=acc/total*360; acc+=v; const end=acc/total*360; %><%= categoryColors[k] %> <%= start %>deg <%= end %>deg<%= i < arr.length-1 ? "," : "" %><% }) %>"><span><strong><%= total.toFixed(1) %></strong>時間</span></div>
+    </div>
+    <div class="legend compact"><% Object.entries(totals).filter(([,v]) => v).forEach(([key,value]) => { %><div><i style="--color:<%= categoryColors[key] %>"></i><span><%= key %></span><strong><%= value.toFixed(1) %>h</strong></div><% }) %></div>
+  </section>
+  <section class="panel span-2">
+    <div class="panel-head"><div><p class="eyebrow">DEADLINES</p><h2>締切が近い課題</h2></div><a href="/assignments">すべて見る →</a></div>
+    <% if (!upcomingAssignments.length) { %><%- include("partials/empty", { message: "7日以内の課題はありません" }) %><% } %>
+    <div class="card-list"><% upcomingAssignments.forEach(item => { %><article class="deadline-card"><div class="date-box"><strong><%= new Date(item.deadline).getDate() %></strong><small><%= new Date(item.deadline).getMonth()+1 %>月</small></div><div class="grow"><span class="tag coral"><%= item.subject %></span><h3><%= item.title %></h3><div class="progress"><i style="width:<%= item.progress %>%"></i></div><small>進捗 <%= item.progress %>%</small></div><span class="status"><%= item.status %></span></article><% }) %></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><div><p class="eyebrow">UPCOMING</p><h2>近いテスト</h2></div><a href="/tests">詳細 →</a></div>
+    <% if (!upcomingTests.length) { %><%- include("partials/empty", { message: "登録されたテストはありません" }) %><% } %>
+    <div class="mini-list"><% upcomingTests.forEach(item => { %><article><span class="mini-date"><strong><%= new Date(item.examAt).getDate() %></strong><small><%= new Date(item.examAt).getMonth()+1 %>月</small></span><div><strong><%= item.subject %></strong><small><%= item.scope %></small></div></article><% }) %></div>
+  </section>
+</div>
+<%- include("partials/foot") %>

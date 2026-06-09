@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#252c4a">
+  <title><%= title %> | Campus Compass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/settings.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a href="/" class="brand"><span class="brand-mark">C</span><span>Campus<br><strong>Compass</strong></span></a>
+    <nav>
+      <% const nav = [
+        ["/", "⌂", "ダッシュボード"],
+        ["/timetable", "▦", "時間割"],
+        ["/assignments", "✓", "課題"],
+        ["/tests", "◇", "テスト"],
+        ["/events", "＋", "予定"],
+        ["/calendar", "□", "カレンダー"],
+        ["/analytics", "↗", "時間分析"],
+        ["/settings", "⚙", "設定"]
+      ]; %>
+      <% nav.forEach(([href, icon, label]) => { const active = href === "/" ? path === "/" : path.startsWith(href); %>
+        <a href="<%= href %>" class="<%= active ? 'active' : '' %>"><span class="nav-icon"><%= icon %></span><%= label %></a>
+      <% }) %>
+    </nav>
+    <div class="sidebar-foot"><span class="avatar">MI</span><div><strong>マイページ</strong><small>学生ライフ管理</small></div></div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <button class="menu-button" type="button" aria-label="メニューを開く">☰</button>
+      <div><p class="eyebrow">STUDENT LIFE MANAGER</p><h1><%= title %></h1></div>
+      <div class="today-chip"><span>●</span><%= new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(new Date()) %></div>
+    </header>
+    <div class="page">

@@ -1,0 +1,30 @@
+<%- include("partials/head") %>
+<section class="panel period-settings">
+  <div class="panel-head"><div><p class="eyebrow">SCHOOL SCHEDULE</p><h2>学校の時限設定</h2></div><button class="button ghost" type="button" data-add-period>＋ 時限を追加</button></div>
+  <p class="settings-description">学校に合わせてコマ数と各時限の開始・終了時刻を設定できます。変更内容は時間割とテスト開始時刻に反映されます。</p>
+  <form method="post" action="/settings/periods" class="period-form">
+    <div class="period-list" data-period-list>
+      <% periods.forEach(item => { %><div class="period-row"><strong><span data-period-number><%= item.number %></span>限</strong><label>開始<input required type="time" name="startTime" value="<%= item.startTime %>"></label><span>〜</span><label>終了<input required type="time" name="endTime" value="<%= item.endTime %>"></label><button class="icon-button danger" type="button" data-remove-period aria-label="時限を削除">×</button></div><% }) %>
+    </div>
+    <div class="form-actions"><button class="button primary" type="submit">時限設定を保存</button></div>
+  </form>
+</section>
+<section class="panel period-settings schedule-step-panel">
+  <div class="panel-head"><div><p class="eyebrow">SCHEDULE INPUT</p><h2>予定時刻の刻み幅</h2></div></div>
+  <p class="settings-description">アルバイトや予定の開始・終了時刻を、何分単位で選択・ドラッグするか設定します。</p>
+  <form method="post" action="/settings/schedule-step" class="step-form">
+    <label>時刻の刻み幅<select name="scheduleStep"><% [5,10,15,30,60].forEach(step => { %><option value="<%= step %>" <%= scheduleStep === step ? "selected" : "" %>><%= step %>分単位</option><% }) %></select></label>
+    <button class="button primary" type="submit">刻み幅を保存</button>
+  </form>
+</section>
+<section class="panel period-settings schedule-step-panel">
+  <div class="panel-head"><div><p class="eyebrow">SCHEDULE TEMPLATES</p><h2>よく使う予定</h2></div><button class="button ghost" type="button" data-add-quick-time>＋ 予定を追加</button></div>
+  <p class="settings-description">タイトル・カテゴリ・時間帯をまとめて登録できます。終了時刻を開始時刻より早くすると、翌日終了として扱われます。</p>
+  <form method="post" action="/settings/quick-times" class="period-form">
+    <div class="quick-time-list" data-quick-time-list>
+      <% quickTimes.forEach(item => { %><div class="quick-time-row"><label>タイトル<input required name="quickTitle" value="<%= item.title %>" placeholder="例：カフェのシフト"></label><label>カテゴリ<select required name="quickCategory"><% categories.forEach(category => { %><option <%= item.category === category ? "selected" : "" %>><%= category %></option><% }) %></select></label><label>開始<input required type="time" name="quickStartTime" value="<%= item.startTime %>"></label><span>〜</span><label>終了<input required type="time" name="quickEndTime" value="<%= item.endTime %>"></label><button class="icon-button danger" type="button" data-remove-quick-time aria-label="予定を削除">×</button></div><% }) %>
+    </div>
+    <div class="form-actions"><button class="button primary" type="submit">よく使う予定を保存</button></div>
+  </form>
+</section>
+<%- include("partials/foot") %>
