@@ -7,7 +7,7 @@
 </section>
 <% if (selectedDate) { %>
 <section class="panel day-schedule-panel" id="day-schedule">
-  <div class="panel-head"><div><p class="eyebrow">DAILY TIMETABLE</p><h2><%= new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(selectedDate) %>のタイムテーブル</h2></div><a class="button primary" href="/events/new">＋ 予定を登録</a></div>
+  <div class="panel-head"><div><p class="eyebrow">DAILY TIMETABLE</p><h2><%= new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(selectedDate) %>のタイムテーブル</h2></div><a class="button primary" href="/events/new?date=<%= selectedKey %>">＋ この日に予定を登録</a></div>
   <% if (!daySchedule.length) { %><%- include("partials/empty", { message: "この日の授業・予定・締切はありません" }) %><% } %>
   <div class="day-schedule-list"><% daySchedule.forEach(item => { %>
     <a class="day-schedule-item" href="<%= item.editUrl %>" style="--schedule-color:<%= item.color %>">
