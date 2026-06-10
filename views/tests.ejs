@@ -1,5 +1,6 @@
 <%- include("partials/head") %>
-<div class="split-layout">
+<% if (formMode) { %>
+<div class="form-page">
   <section class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">EXAM</p><h2><%= editItem ? "テストを編集" : "テストを登録" %></h2></div></div>
     <form method="post" action="/tests" class="form-grid">
       <input type="hidden" name="id" value="<%= editItem?.id || '' %>">
@@ -20,9 +21,11 @@
       <%- include("partials/form-actions", { cancel: "/tests" }) %>
     </form>
   </section>
-  <section class="panel wide-panel"><div class="panel-head"><div><p class="eyebrow">UPCOMING EXAMS</p><h2>テスト一覧</h2></div><span class="count"><%= items.length %>件</span></div>
-    <% if (!items.length) { %><%- include("partials/empty", { message: "テストはまだ登録されていません" }) %><% } %>
-    <div class="management-list"><% items.forEach(item => { %><article><div class="date-box purple"><strong><%= new Date(item.examAt).getDate() %></strong><small><%= new Date(item.examAt).getMonth()+1 %>月</small></div><div class="grow"><span class="tag purple">テスト</span><h3><%= item.subject %></h3><p><%= formatDateTime(item.examAt) %></p><small><%= item.scope %><%= item.memo ? ` · ${item.memo}` : "" %></small></div><%- include("partials/item-actions", { editUrl: `/tests?edit=${item.id}`, collection: "tests", id: item.id }) %></article><% }) %></div>
-  </section>
 </div>
+<% } else { %>
+<section class="panel wide-panel"><div class="panel-head"><div><p class="eyebrow">UPCOMING EXAMS</p><h2>テスト一覧</h2></div><div class="panel-actions"><span class="count"><%= items.length %>件</span><a class="button primary" href="/tests/new">＋ テストを登録</a></div></div>
+  <% if (!items.length) { %><%- include("partials/empty", { message: "テストはまだ登録されていません" }) %><% } %>
+  <div class="management-list"><% items.forEach(item => { %><article><div class="date-box purple"><strong><%= new Date(item.examAt).getDate() %></strong><small><%= new Date(item.examAt).getMonth()+1 %>月</small></div><div class="grow"><span class="tag purple">テスト</span><h3><%= item.subject %></h3><p><%= formatDateTime(item.examAt) %></p><small><%= item.scope %><%= item.memo ? ` · ${item.memo}` : "" %></small></div><%- include("partials/item-actions", { editUrl: `/tests/${item.id}/edit`, collection: "tests", id: item.id }) %></article><% }) %></div>
+</section>
+<% } %>
 <%- include("partials/foot") %>

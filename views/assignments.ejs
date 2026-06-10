@@ -1,5 +1,6 @@
 <%- include("partials/head") %>
-<div class="split-layout">
+<% if (formMode) { %>
+<div class="form-page">
   <section class="panel form-panel">
     <div class="panel-head"><div><p class="eyebrow">TASK</p><h2><%= editItem ? "課題を編集" : "課題を登録" %></h2></div></div>
     <form method="post" action="/assignments" class="form-grid">
@@ -13,10 +14,12 @@
       <%- include("partials/form-actions", { cancel: "/assignments" }) %>
     </form>
   </section>
-  <section class="panel wide-panel">
-    <div class="panel-head"><div><p class="eyebrow">DEADLINE ORDER</p><h2>課題一覧</h2></div><span class="count"><%= items.length %>件</span></div>
-    <% if (!items.length) { %><%- include("partials/empty", { message: "課題はまだ登録されていません" }) %><% } %>
-    <div class="management-list"><% items.forEach(item => { %><article><div class="date-box"><strong><%= new Date(item.deadline).getDate() %></strong><small><%= new Date(item.deadline).getMonth()+1 %>月</small></div><div class="grow"><span class="tag coral"><%= item.subject %></span><h3><%= item.title %></h3><p><%= formatDateTime(item.deadline) %></p><div class="progress"><i style="width:<%= item.progress %>%"></i></div><small>進捗 <%= item.progress %>% · <%= item.status %></small></div><%- include("partials/item-actions", { editUrl: `/assignments?edit=${item.id}`, collection: "assignments", id: item.id }) %></article><% }) %></div>
-  </section>
 </div>
+<% } else { %>
+<section class="panel wide-panel">
+  <div class="panel-head"><div><p class="eyebrow">DEADLINE ORDER</p><h2>課題一覧</h2></div><div class="panel-actions"><span class="count"><%= items.length %>件</span><a class="button primary" href="/assignments/new">＋ 課題を登録</a></div></div>
+  <% if (!items.length) { %><%- include("partials/empty", { message: "課題はまだ登録されていません" }) %><% } %>
+  <div class="management-list"><% items.forEach(item => { %><article><div class="date-box"><strong><%= new Date(item.deadline).getDate() %></strong><small><%= new Date(item.deadline).getMonth()+1 %>月</small></div><div class="grow"><span class="tag coral"><%= item.subject %></span><h3><%= item.title %></h3><p><%= formatDateTime(item.deadline) %></p><div class="progress"><i style="width:<%= item.progress %>%"></i></div><small>進捗 <%= item.progress %>% · <%= item.status %></small></div><%- include("partials/item-actions", { editUrl: `/assignments/${item.id}/edit`, collection: "assignments", id: item.id }) %></article><% }) %></div>
+</section>
+<% } %>
 <%- include("partials/foot") %>

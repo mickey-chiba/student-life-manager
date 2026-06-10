@@ -93,3 +93,17 @@
 @media (max-width: 1100px) {
   .events-layout { grid-template-columns: 1fr; }
 }
+
+.form-page { max-width: 720px; margin: 0 auto; }
+.event-form-page { max-width: 820px; }
+.form-page .form-panel { position: static; }
+.panel-actions { display: flex; align-items: center; gap: 8px; }
+
+@media (max-width: 760px) {
+  .panel-head { align-items: flex-start; }
+  .panel-actions { align-items: flex-end; flex-direction: column-reverse; }
+  .form-grid input, .form-grid select, .form-grid textarea,
+  .period-row input, .step-form select, .quick-time-row input, .quick-time-row select {
+    font-size: 16px;
+  }
+}

@@ -255,7 +255,16 @@ app.get("/", async (req, res) => {
 
 app.get("/timetable", async (req, res) => {
   const classes = await req.store.list("classes");
-  res.render("timetable", { title: "時間割", classes, editItem: req.query.edit ? await req.store.find("classes", req.query.edit) : null });
+  res.render("timetable", { title: "時間割", classes, editItem: null, formMode: false });
+});
+app.get("/timetable/new", async (req, res) => {
+  res.render("timetable", { title: "授業を登録", classes: [], editItem: null, formMode: true });
+});
+app.get("/timetable/:id/edit", async (req, res) => {
+  assertInput(validId(req.params.id), "授業IDが正しくありません。");
+  const editItem = await req.store.find("classes", req.params.id);
+  if (!editItem) return res.sendStatus(404);
+  res.render("timetable", { title: "授業を編集", classes: [], editItem, formMode: true });
 });
 app.post("/timetable", async (req, res) => {
   assertInput(validId(req.body.id), "授業IDが正しくありません。");
@@ -299,20 +308,24 @@ app.post("/timetable/:id/move", async (req, res) => {
   res.json({ ok: true });
 });
 
-function listRoute(pathname, collection, title, dateField) {
+function listRoute(pathname, collection, title, dateField, singularTitle) {
   app.get(pathname, async (req, res) => {
     const items = (await req.store.list(collection)).sort((a, b) => new Date(a[dateField]) - new Date(b[dateField]));
-    res.render(collection, {
-      title,
-      items,
-      editItem: req.query.edit ? await req.store.find(collection, req.query.edit) : null,
-      classes: collection === "tests" ? await req.store.list("classes") : []
-    });
+    res.render(collection, { title, items, editItem: null, formMode: false, classes: [] });
+  });
+  app.get(`${pathname}/new`, async (req, res) => {
+    res.render(collection, { title: `${singularTitle}を登録`, items: [], editItem: null, formMode: true, classes: collection === "tests" ? await req.store.list("classes") : [] });
+  });
+  app.get(`${pathname}/:id/edit`, async (req, res) => {
+    assertInput(validId(req.params.id), `${singularTitle}IDが正しくありません。`);
+    const editItem = await req.store.find(collection, req.params.id);
+    if (!editItem) return res.sendStatus(404);
+    res.render(collection, { title: `${singularTitle}を編集`, items: [], editItem, formMode: true, classes: collection === "tests" ? await req.store.list("classes") : [] });
   });
 }
-listRoute("/assignments", "assignments", "課題管理", "deadline");
-listRoute("/tests", "tests", "テスト管理", "examAt");
-listRoute("/events", "events", "予定管理", "startAt");
+listRoute("/assignments", "assignments", "課題管理", "deadline", "課題");
+listRoute("/tests", "tests", "テスト管理", "examAt", "テスト");
+listRoute("/events", "events", "予定管理", "startAt", "予定");
 
 app.post("/assignments", async (req, res) => {
   const progress = Number(req.body.progress || 0);

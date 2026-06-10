@@ -1,5 +1,6 @@
 <%- include("partials/head") %>
-<div class="split-layout events-layout">
+<% if (formMode) { %>
+<div class="form-page event-form-page">
   <section class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">SCHEDULE</p><h2><%= editItem ? "予定を編集" : "予定を登録" %></h2></div></div>
     <% const startParts = localInputParts(editItem?.startAt); const rawEndParts = localInputParts(editItem?.endAt); const startTime = snapTime(startParts.time, scheduleStep, "floor"); const nextDay = Boolean(editItem && rawEndParts.date !== startParts.date); const endTime = editItem ? snapTime(rawEndParts.time, scheduleStep, "ceil") : "10:00"; %>
     <form method="post" action="/events" class="form-grid">
@@ -38,9 +39,11 @@
       <%- include("partials/form-actions", { cancel: "/events" }) %>
     </form>
   </section>
-  <section class="panel wide-panel"><div class="panel-head"><div><p class="eyebrow">ALL SCHEDULES</p><h2>予定一覧</h2></div><span class="count"><%= items.length %>件</span></div>
-    <% if (!items.length) { %><%- include("partials/empty", { message: "予定はまだ登録されていません" }) %><% } %>
-    <div class="management-list"><% items.forEach(item => { const overnight = item.startAt.slice(0,10) !== item.endAt.slice(0,10); %><article><div class="category-mark" style="--color:<%= categoryColors[item.category] %>"></div><div class="grow"><span class="tag" style="--tag:<%= categoryColors[item.category] %>"><%= item.category %></span><h3><%= item.title %></h3><p><%= formatDate(item.startAt) %>　<%= formatTime(item.startAt) %>〜<%= overnight ? "翌 " : "" %><%= formatTime(item.endAt) %></p><small><%= item.memo %></small></div><%- include("partials/item-actions", { editUrl: `/events?edit=${item.id}`, collection: "events", id: item.id }) %></article><% }) %></div>
-  </section>
 </div>
+<% } else { %>
+<section class="panel wide-panel"><div class="panel-head"><div><p class="eyebrow">ALL SCHEDULES</p><h2>予定一覧</h2></div><div class="panel-actions"><span class="count"><%= items.length %>件</span><a class="button primary" href="/events/new">＋ 予定を登録</a></div></div>
+  <% if (!items.length) { %><%- include("partials/empty", { message: "予定はまだ登録されていません" }) %><% } %>
+  <div class="management-list"><% items.forEach(item => { const overnight = item.startAt.slice(0,10) !== item.endAt.slice(0,10); %><article><div class="category-mark" style="--color:<%= categoryColors[item.category] %>"></div><div class="grow"><span class="tag" style="--tag:<%= categoryColors[item.category] %>"><%= item.category %></span><h3><%= item.title %></h3><p><%= formatDate(item.startAt) %>　<%= formatTime(item.startAt) %>〜<%= overnight ? "翌 " : "" %><%= formatTime(item.endAt) %></p><small><%= item.memo %></small></div><%- include("partials/item-actions", { editUrl: `/events/${item.id}/edit`, collection: "events", id: item.id }) %></article><% }) %></div>
+</section>
+<% } %>
 <%- include("partials/foot") %>
