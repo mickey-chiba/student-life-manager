@@ -1,6 +1,7 @@
 const path = require("node:path");
 const express = require("express");
 const store = require("./lib/store");
+const auth = require("./lib/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,8 +18,62 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+// 1. ログイン中のユーザーをCookieから判定して各リクエストに付与する。
 app.use((req, res, next) => {
-  const settings = store.read().settings;
+  const user = auth.currentUser(req);
+  req.user = user;
+  res.locals.currentUser = user;
+  next();
+});
+
+// 2. ログイン不要のページ（ログイン・新規登録・ログアウト）。
+app.get("/login", (req, res) => {
+  if (req.user) return res.redirect("/");
+  res.render("login", { title: "ログイン", mode: "login", error: null, name: "" });
+});
+app.post("/login", (req, res) => {
+  const name = req.body.name || "";
+  const user = store.verifyUser(name, req.body.password || "");
+  if (!user) {
+    return res.status(401).render("login", { title: "ログイン", mode: "login", error: "名前またはパスワードが正しくありません。", name });
+  }
+  auth.login(res, user.id);
+  res.redirect("/");
+});
+app.get("/register", (req, res) => {
+  if (req.user) return res.redirect("/");
+  res.render("login", { title: "新規登録", mode: "register", error: null, name: "" });
+});
+app.post("/register", (req, res) => {
+  const name = (req.body.name || "").trim();
+  const password = req.body.password || "";
+  if (name.length < 1 || password.length < 4) {
+    return res.status(400).render("login", { title: "新規登録", mode: "register", error: "名前を入力し、パスワードは4文字以上にしてください。", name });
+  }
+  let user;
+  try {
+    user = store.createUser(name, password);
+  } catch (error) {
+    return res.status(409).render("login", { title: "新規登録", mode: "register", error: "その名前はすでに使われています。別の名前にしてください。", name });
+  }
+  auth.login(res, user.id);
+  res.redirect("/");
+});
+app.post("/logout", (req, res) => {
+  auth.logout(res);
+  res.redirect("/login");
+});
+
+// 3. ここから先はログイン必須。以降のルートは req.store（本人専用データ）を使う。
+app.use((req, res, next) => {
+  if (!req.user) return res.redirect("/login");
+  req.store = store.forUser(req.user.id);
+  next();
+});
+
+// 4. テンプレート共通の値（ログイン後のみ実行される）。
+app.use((req, res, next) => {
+  const settings = req.store.read().settings;
   const schoolPeriods = settings.periods;
   res.locals.path = req.path;
   res.locals.weekdays = weekdays;

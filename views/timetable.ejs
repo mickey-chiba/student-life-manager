@@ -14,6 +14,11 @@
       <label class="wide">メモ<textarea name="memo" placeholder="補足情報"><%= editItem?.memo || '' %></textarea></label>
       <%- include("partials/form-actions", { cancel: "/timetable" }) %>
     </form>
+    <% if (editItem) { %>
+      <form method="post" action="/classes/<%= editItem.id %>/delete" class="delete-class-form" data-confirm="「<%= editItem.subject %>」を時間割から削除しますか？">
+        <button class="button delete-button" type="submit">授業を削除</button>
+      </form>
+    <% } %>
   </section>
   <section class="panel wide-panel">
     <div class="panel-head"><div><p class="eyebrow">WEEKLY</p><h2>週間時間割</h2><small class="drag-help">授業カードをドラッグすると、曜日・時限を移動できます。</small></div></div>
