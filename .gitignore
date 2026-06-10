@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 data/store.json
+.env
+.env.*
+!.env.example
