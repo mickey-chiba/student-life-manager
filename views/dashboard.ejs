@@ -27,7 +27,7 @@
     <div class="panel-head"><div><p class="eyebrow">THIS WEEK</p><h2>時間の使い方</h2></div><a href="/analytics">詳細 →</a></div>
     <div class="donut-wrap">
       <% const total = Object.values(totals).reduce((a,b) => a+b, 0); %>
-      <div class="donut" style="--values:<% let acc=0; Object.entries(totals).filter(([,v])=>v).forEach(([k,v],i,arr)=>{ const start=acc/total*360; acc+=v; const end=acc/total*360; %><%= categoryColors[k] %> <%= start %>deg <%= end %>deg<%= i < arr.length-1 ? "," : "" %><% }) %>"><span><strong><%= total.toFixed(1) %></strong>時間</span></div>
+      <div class="donut" style="--values:<% if (!total) { %>#e9ebf2 0deg 360deg<% } else { let acc=0; Object.entries(totals).filter(([,v])=>v).forEach(([k,v],i,arr)=>{ const start=acc/total*360; acc+=v; const end=acc/total*360; %><%= categoryColors[k] %> <%= start %>deg <%= end %>deg<%= i < arr.length-1 ? "," : "" %><% }) } %>"><span><strong><%= total.toFixed(1) %></strong>時間</span></div>
     </div>
     <div class="legend compact"><% Object.entries(totals).filter(([,v]) => v).forEach(([key,value]) => { %><div><i style="--color:<%= categoryColors[key] %>"></i><span><%= key %></span><strong><%= value.toFixed(1) %>h</strong></div><% }) %></div>
   </section>
