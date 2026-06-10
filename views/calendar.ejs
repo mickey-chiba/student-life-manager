@@ -2,7 +2,20 @@
 <section class="panel">
   <div class="calendar-toolbar"><a class="icon-button" href="/calendar?month=<%= prev %>">‹</a><div><p class="eyebrow">MONTHLY CALENDAR</p><h2><%= base.getFullYear() %>年 <%= base.getMonth()+1 %>月</h2></div><a class="button ghost" href="/calendar">今月</a><a class="icon-button" href="/calendar?month=<%= next %>">›</a></div>
   <div class="calendar-grid"><% ["日","月","火","水","木","金","土"].forEach(x => { %><strong class="cal-head"><%= x %></strong><% }) %>
-    <% days.forEach(day => { %><div class="cal-day <%= day.currentMonth ? "" : "muted" %> <%= day.key === today ? "today" : "" %>"><span><%= day.date.getDate() %></span><div class="cal-items"><% (items[day.key] || []).slice(0,3).forEach(item => { %><div style="--color:<%= item.color %>"><i></i><%= item.title %></div><% }) %><% if ((items[day.key] || []).length > 3) { %><small>ほか <%= items[day.key].length-3 %>件</small><% } %></div></div><% }) %>
+    <% days.forEach(day => { %><a href="/calendar?month=<%= day.key.slice(0,7) %>&date=<%= day.key %>#day-schedule" class="cal-day <%= day.currentMonth ? "" : "muted" %> <%= day.key === today ? "today" : "" %> <%= day.key === selectedKey ? "selected" : "" %>"><span><%= day.date.getDate() %></span><div class="cal-items"><% (items[day.key] || []).slice(0,3).forEach(item => { %><div style="--color:<%= item.color %>"><i></i><%= item.title %></div><% }) %><% if ((items[day.key] || []).length > 3) { %><small>ほか <%= items[day.key].length-3 %>件</small><% } %></div></a><% }) %>
   </div>
 </section>
+<% if (selectedDate) { %>
+<section class="panel day-schedule-panel" id="day-schedule">
+  <div class="panel-head"><div><p class="eyebrow">DAILY TIMETABLE</p><h2><%= new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(selectedDate) %>のタイムテーブル</h2></div><a class="button primary" href="/events/new">＋ 予定を登録</a></div>
+  <% if (!daySchedule.length) { %><%- include("partials/empty", { message: "この日の授業・予定・締切はありません" }) %><% } %>
+  <div class="day-schedule-list"><% daySchedule.forEach(item => { %>
+    <a class="day-schedule-item" href="<%= item.editUrl %>" style="--schedule-color:<%= item.color %>">
+      <time><strong><%= item.startTime %></strong><% if (item.endTime) { %><span><%= item.endTime %>まで</span><% } %></time>
+      <i></i>
+      <div><span><%= item.kind %></span><h3><%= item.title %></h3><p><%= item.detail || "詳細なし" %></p></div>
+    </a>
+  <% }) %></div>
+</section>
+<% } %>
 <%- include("partials/foot") %>

@@ -393,6 +393,8 @@ app.post("/:collection/:id/delete", async (req, res) => {
 app.get("/calendar", async (req, res) => {
   const data = await req.store.read();
   const base = req.query.month && /^\d{4}-\d{2}$/.test(req.query.month) ? new Date(`${req.query.month}-01T00:00:00`) : new Date();
+  const requestedDate = req.query.date || "";
+  const selectedKey = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && !Number.isNaN(new Date(`${requestedDate}T00:00:00`).getTime()) ? requestedDate : null;
   const first = new Date(base.getFullYear(), base.getMonth(), 1);
   const gridStart = new Date(first);
   gridStart.setDate(gridStart.getDate() - gridStart.getDay());
@@ -407,7 +409,55 @@ app.get("/calendar", async (req, res) => {
   }, {});
   const prev = monthKey(new Date(base.getFullYear(), base.getMonth() - 1, 1));
   const next = monthKey(new Date(base.getFullYear(), base.getMonth() + 1, 1));
-  res.render("calendar", { title: "カレンダー", days, items, base, prev, next, today: dateKey(new Date()) });
+  let selectedDate = null;
+  let daySchedule = [];
+  if (selectedKey) {
+    selectedDate = new Date(`${selectedKey}T00:00:00`);
+    const dayEnd = new Date(selectedDate);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const selectedWeekday = weekdays[(selectedDate.getDay() + 6) % 7];
+    const periods = data.settings.periods;
+    const periodTime = (number, edge) => periods.find((period) => period.number === Number(number))?.[edge] || "";
+    daySchedule = [
+      ...data.classes.filter((item) => item.weekday === selectedWeekday).map((item) => ({
+        kind: "授業",
+        title: item.subject,
+        detail: [item.room, item.teacher].filter(Boolean).join(" · "),
+        startTime: periodTime(item.startPeriod || item.period, "startTime"),
+        endTime: periodTime(item.endPeriod || item.period, "endTime"),
+        color: categoryColors.学習,
+        editUrl: `/timetable/${item.id}/edit`
+      })),
+      ...data.events.filter((item) => new Date(item.startAt) < dayEnd && new Date(item.endAt) > selectedDate).map((item) => ({
+        kind: item.category,
+        title: item.title,
+        detail: item.memo,
+        startTime: new Date(item.startAt) < selectedDate ? "00:00" : item.startAt.slice(11, 16),
+        endTime: new Date(item.endAt) > dayEnd ? "24:00" : item.endAt.slice(11, 16),
+        color: categoryColors[item.category],
+        editUrl: `/events/${item.id}/edit`
+      })),
+      ...data.tests.filter((item) => dateKey(item.examAt) === selectedKey).map((item) => ({
+        kind: "テスト",
+        title: item.subject,
+        detail: item.scope,
+        startTime: item.examAt.slice(11, 16),
+        endTime: "",
+        color: "#7756bd",
+        editUrl: `/tests/${item.id}/edit`
+      })),
+      ...data.assignments.filter((item) => dateKey(item.deadline) === selectedKey).map((item) => ({
+        kind: "課題締切",
+        title: item.title,
+        detail: item.subject,
+        startTime: item.deadline.slice(11, 16),
+        endTime: "",
+        color: "#d85858",
+        editUrl: `/assignments/${item.id}/edit`
+      }))
+    ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+  res.render("calendar", { title: "カレンダー", days, items, base, prev, next, today: dateKey(new Date()), selectedKey, selectedDate, daySchedule });
 });
 
 app.get("/analytics", async (req, res) => {
