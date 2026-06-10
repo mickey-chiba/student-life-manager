@@ -44,7 +44,7 @@
       <form method="post" action="<%= mode === 'register' ? '/register' : '/login' %>">
         <label for="name">名前</label>
         <input id="name" name="name" type="text" value="<%= name %>" autocomplete="username" required autofocus>
-        <label for="password">パスワード<% if (mode === "register") { %><span style="font-weight:400;color:#7c8798;">（8文字以上）</span><% } %></label>
+        <label for="password">パスワード<% if (mode === "register") { %><span style="font-weight:400;color:#7c8798;">（4文字以上）</span><% } %></label>
         <input id="password" name="password" type="password" autocomplete="<%= mode === 'register' ? 'new-password' : 'current-password' %>" required>
         <button type="submit"><%= mode === "register" ? "登録して始める" : "ログイン" %></button>
       </form>
