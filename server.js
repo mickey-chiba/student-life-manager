@@ -1,10 +1,19 @@
 const path = require("node:path");
 const express = require("express");
+const helmet = require("helmet");
+const { rateLimit } = require("express-rate-limit");
 const store = require("./lib/store");
 const auth = require("./lib/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === "production";
+if (isProduction && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32)) {
+  throw new Error("本番環境では32文字以上のSESSION_SECRETが必要です。");
+}
+if (isProduction && !process.env.DATABASE_URL) {
+  throw new Error("本番環境ではPostgreSQLのDATABASE_URLが必要です。");
+}
 const weekdays = ["月", "火", "水", "木", "金", "土", "日"];
 const categories = ["学習", "アルバイト", "サークル", "遊び", "就職活動", "その他"];
 const categoryColors = {
@@ -14,66 +23,84 @@ const categoryColors = {
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+if (isProduction) app.set("trust proxy", 1);
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use((req, res, next) => {
+  if (isProduction && req.get("x-forwarded-proto") !== "https") return res.redirect(301, `https://${req.get("host")}${req.originalUrl}`);
+  next();
+});
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
+app.use(express.json({ limit: "20kb" }));
 app.use(express.static(path.join(__dirname, "public")));
+app.get("/health", (req, res) => res.json({ ok: true, database: store.usingPostgres ? "postgresql" : "json" }));
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "ログイン試行回数が多すぎます。15分ほど待ってから再度お試しください。"
+});
 
 // 1. ログイン中のユーザーをCookieから判定して各リクエストに付与する。
-app.use((req, res, next) => {
-  const user = auth.currentUser(req);
+app.use(async (req, res, next) => {
+  const user = await auth.currentUser(req);
   req.user = user;
   res.locals.currentUser = user;
   next();
 });
 
 // 2. ログイン不要のページ（ログイン・新規登録・ログアウト）。
-app.get("/login", (req, res) => {
+app.get("/login", async (req, res) => {
   if (req.user) return res.redirect("/");
   res.render("login", { title: "ログイン", mode: "login", error: null, name: "" });
 });
-app.post("/login", (req, res) => {
-  const name = req.body.name || "";
-  const user = store.verifyUser(name, req.body.password || "");
+app.post("/login", loginLimiter, async (req, res) => {
+  const name = cleanText(req.body.name, 50);
+  const user = await store.verifyUser(name, req.body.password || "");
   if (!user) {
     return res.status(401).render("login", { title: "ログイン", mode: "login", error: "名前またはパスワードが正しくありません。", name });
   }
   auth.login(res, user.id);
   res.redirect("/");
 });
-app.get("/register", (req, res) => {
+app.get("/register", async (req, res) => {
   if (req.user) return res.redirect("/");
   res.render("login", { title: "新規登録", mode: "register", error: null, name: "" });
 });
-app.post("/register", (req, res) => {
-  const name = (req.body.name || "").trim();
+app.post("/register", loginLimiter, async (req, res) => {
+  const name = cleanText(req.body.name, 50);
   const password = req.body.password || "";
-  if (name.length < 1 || password.length < 4) {
-    return res.status(400).render("login", { title: "新規登録", mode: "register", error: "名前を入力し、パスワードは4文字以上にしてください。", name });
+  if (name.length < 1 || password.length < 8 || password.length > 200) {
+    return res.status(400).render("login", { title: "新規登録", mode: "register", error: "名前を入力し、パスワードは8文字以上にしてください。", name });
   }
   let user;
   try {
-    user = store.createUser(name, password);
+    user = await store.createUser(name, password);
   } catch (error) {
-    return res.status(409).render("login", { title: "新規登録", mode: "register", error: "その名前はすでに使われています。別の名前にしてください。", name });
+    if (error.code === "USER_EXISTS") {
+      return res.status(409).render("login", { title: "新規登録", mode: "register", error: "その名前はすでに使われています。別の名前にしてください。", name });
+    }
+    throw error;
   }
   auth.login(res, user.id);
   res.redirect("/");
 });
-app.post("/logout", (req, res) => {
+app.post("/logout", async (req, res) => {
   auth.logout(res);
   res.redirect("/login");
 });
 
 // 3. ここから先はログイン必須。以降のルートは req.store（本人専用データ）を使う。
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (!req.user) return res.redirect("/login");
   req.store = store.forUser(req.user.id);
   next();
 });
 
 // 4. テンプレート共通の値（ログイン後のみ実行される）。
-app.use((req, res, next) => {
-  const settings = req.store.read().settings;
+app.use(async (req, res, next) => {
+  const settings = (await req.store.read()).settings;
   const schoolPeriods = settings.periods;
   res.locals.path = req.path;
   res.locals.weekdays = weekdays;
@@ -95,6 +122,20 @@ function parseDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
+
+class InputError extends Error {}
+function assertInput(condition, message) {
+  if (!condition) throw new InputError(message);
+}
+function cleanText(value, max, required = false) {
+  const text = String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  assertInput(!required || text.length > 0, "必須項目を入力してください。");
+  assertInput(text.length <= max, `入力内容は${max}文字以内にしてください。`);
+  return text;
+}
+const validId = (value) => !value || /^[0-9a-f-]{36}$/i.test(value);
+const validDateTime = (value) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value || "") && !Number.isNaN(new Date(value).getTime());
+const validTime = (value) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || "");
 
 function formatDate(value) {
   const date = parseDate(value);
@@ -192,8 +233,8 @@ function calendarItems(data) {
   ];
 }
 
-app.get("/", (req, res) => {
-  const data = req.store.read();
+app.get("/", async (req, res) => {
+  const data = await req.store.read();
   const today = dateKey(new Date());
   const now = new Date();
   const soon = new Date(now);
@@ -212,31 +253,41 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/timetable", (req, res) => {
-  const classes = req.store.list("classes");
-  res.render("timetable", { title: "時間割", classes, editItem: req.query.edit ? req.store.find("classes", req.query.edit) : null });
+app.get("/timetable", async (req, res) => {
+  const classes = await req.store.list("classes");
+  res.render("timetable", { title: "時間割", classes, editItem: req.query.edit ? await req.store.find("classes", req.query.edit) : null });
 });
-app.post("/timetable", (req, res) => {
+app.post("/timetable", async (req, res) => {
+  assertInput(validId(req.body.id), "授業IDが正しくありません。");
+  const subject = cleanText(req.body.subject, 100, true);
+  const weekday = cleanText(req.body.weekday, 1, true);
+  const room = cleanText(req.body.room, 100);
+  const teacher = cleanText(req.body.teacher, 100);
+  const memo = cleanText(req.body.memo, 1000);
   const startPeriod = Number(req.body.startPeriod);
   const endPeriod = Number(req.body.endPeriod);
-  if (endPeriod < startPeriod) return res.status(400).send("終了時限は開始時限以降にしてください。");
-  req.store.save("classes", { id: req.body.id, subject: req.body.subject, weekday: req.body.weekday, period: String(startPeriod), startPeriod, endPeriod, room: req.body.room, teacher: req.body.teacher, memo: req.body.memo });
+  const periodLimit = (await req.store.read()).settings.periods.length;
+  assertInput(weekdays.includes(weekday), "曜日が正しくありません。");
+  assertInput(Number.isInteger(startPeriod) && Number.isInteger(endPeriod) && startPeriod >= 1 && endPeriod <= periodLimit, "時限が正しくありません。");
+  assertInput(endPeriod >= startPeriod, "終了時限は開始時限以降にしてください。");
+  await req.store.save("classes", { id: req.body.id, subject, weekday, period: String(startPeriod), startPeriod, endPeriod, room, teacher, memo });
   res.redirect("/timetable");
 });
-app.post("/timetable/:id/move", (req, res) => {
-  const lesson = req.store.find("classes", req.params.id);
+app.post("/timetable/:id/move", async (req, res) => {
+  assertInput(validId(req.params.id), "授業IDが正しくありません。");
+  const lesson = await req.store.find("classes", req.params.id);
   if (!lesson) return res.status(404).json({ message: "授業が見つかりません。" });
 
   const weekday = req.body.weekday;
   const startPeriod = Number(req.body.startPeriod);
   const periodCount = Number(lesson.endPeriod || lesson.period) - Number(lesson.startPeriod || lesson.period) + 1;
   const endPeriod = startPeriod + periodCount - 1;
-  const periodLimit = req.store.read().settings.periods.length;
+  const periodLimit = (await req.store.read()).settings.periods.length;
   if (!weekdays.slice(0, 6).includes(weekday) || startPeriod < 1 || endPeriod > periodLimit) {
     return res.status(400).json({ message: "複数コマ分を含めると、時限の範囲を超えてしまいます。" });
   }
 
-  const overlaps = req.store.list("classes").some((item) => {
+  const overlaps = (await req.store.list("classes")).some((item) => {
     if (item.id === lesson.id || item.weekday !== weekday) return false;
     const itemStart = Number(item.startPeriod || item.period);
     const itemEnd = Number(item.endPeriod || item.period);
@@ -244,18 +295,18 @@ app.post("/timetable/:id/move", (req, res) => {
   });
   if (overlaps) return res.status(409).json({ message: "移動先の時間には、すでに別の授業があります。" });
 
-  req.store.save("classes", { ...lesson, weekday, period: String(startPeriod), startPeriod, endPeriod });
+  await req.store.save("classes", { ...lesson, weekday, period: String(startPeriod), startPeriod, endPeriod });
   res.json({ ok: true });
 });
 
 function listRoute(pathname, collection, title, dateField) {
-  app.get(pathname, (req, res) => {
-    const items = req.store.list(collection).sort((a, b) => new Date(a[dateField]) - new Date(b[dateField]));
+  app.get(pathname, async (req, res) => {
+    const items = (await req.store.list(collection)).sort((a, b) => new Date(a[dateField]) - new Date(b[dateField]));
     res.render(collection, {
       title,
       items,
-      editItem: req.query.edit ? req.store.find(collection, req.query.edit) : null,
-      classes: collection === "tests" ? req.store.list("classes") : []
+      editItem: req.query.edit ? await req.store.find(collection, req.query.edit) : null,
+      classes: collection === "tests" ? await req.store.list("classes") : []
     });
   });
 }
@@ -263,16 +314,41 @@ listRoute("/assignments", "assignments", "課題管理", "deadline");
 listRoute("/tests", "tests", "テスト管理", "examAt");
 listRoute("/events", "events", "予定管理", "startAt");
 
-app.post("/assignments", (req, res) => {
-  req.store.save("assignments", { id: req.body.id, title: req.body.title, subject: req.body.subject, deadline: req.body.deadline, progress: Number(req.body.progress || 0), status: req.body.status, memo: req.body.memo });
+app.post("/assignments", async (req, res) => {
+  const progress = Number(req.body.progress || 0);
+  assertInput(validId(req.body.id), "課題IDが正しくありません。");
+  assertInput(validDateTime(req.body.deadline), "締切日時が正しくありません。");
+  assertInput(Number.isInteger(progress) && progress >= 0 && progress <= 100, "進捗率は0から100の整数で入力してください。");
+  assertInput(["未着手", "作業中", "完了"].includes(req.body.status), "課題の状態が正しくありません。");
+  await req.store.save("assignments", {
+    id: req.body.id,
+    title: cleanText(req.body.title, 120, true),
+    subject: cleanText(req.body.subject, 100, true),
+    deadline: req.body.deadline,
+    progress,
+    status: req.body.status,
+    memo: cleanText(req.body.memo, 1000)
+  });
   res.redirect("/assignments");
 });
-app.post("/tests", (req, res) => {
-  req.store.save("tests", { id: req.body.id, subject: req.body.subject, examAt: req.body.examAt, scope: req.body.scope, memo: req.body.memo });
+app.post("/tests", async (req, res) => {
+  assertInput(validId(req.body.id), "テストIDが正しくありません。");
+  assertInput(validDateTime(req.body.examAt), "試験日時が正しくありません。");
+  await req.store.save("tests", {
+    id: req.body.id,
+    subject: cleanText(req.body.subject, 100, true),
+    examAt: req.body.examAt,
+    scope: cleanText(req.body.scope, 1000),
+    memo: cleanText(req.body.memo, 1000)
+  });
   res.redirect("/tests");
 });
-app.post("/events", (req, res) => {
-  const scheduleStep = req.store.read().settings.scheduleStep;
+app.post("/events", async (req, res) => {
+  assertInput(validId(req.body.id), "予定IDが正しくありません。");
+  assertInput(categories.includes(req.body.category), "カテゴリが正しくありません。");
+  assertInput(validTime(req.body.startTime) || req.body.startTime === "24:00", "開始時刻が正しくありません。");
+  assertInput(validTime(req.body.endTime) || req.body.endTime === "24:00", "終了時刻が正しくありません。");
+  const scheduleStep = (await req.store.read()).settings.scheduleStep;
   const toMinutes = (time) => time === "24:00" ? 1440 : Number(time?.slice(0, 2)) * 60 + Number(time?.slice(3, 5));
   const startMinutes = toMinutes(req.body.startTime);
   const endMinutes = toMinutes(req.body.endTime);
@@ -283,19 +359,26 @@ app.post("/events", (req, res) => {
   const endDate = req.body.nextDay === "1" ? nextDateKey(req.body.eventDate) : req.body.eventDate;
   const endAt = combineDateAndTime(endDate, req.body.endTime);
   if (new Date(endAt) <= new Date(startAt)) return res.status(400).send("終了時刻は開始時刻より後にしてください。");
-  req.store.save("events", { id: req.body.id, title: req.body.title, startAt, endAt, category: req.body.category, memo: req.body.memo });
+  await req.store.save("events", {
+    id: req.body.id,
+    title: cleanText(req.body.title, 120, true),
+    startAt,
+    endAt,
+    category: req.body.category,
+    memo: cleanText(req.body.memo, 1000)
+  });
   res.redirect("/events");
 });
 
-app.post("/:collection/:id/delete", (req, res) => {
+app.post("/:collection/:id/delete", async (req, res) => {
   const routes = { classes: "timetable", assignments: "assignments", tests: "tests", events: "events" };
-  if (!routes[req.params.collection]) return res.sendStatus(404);
-  req.store.remove(req.params.collection, req.params.id);
+  if (!routes[req.params.collection] || !validId(req.params.id)) return res.sendStatus(404);
+  await req.store.remove(req.params.collection, req.params.id);
   res.redirect(`/${routes[req.params.collection]}`);
 });
 
-app.get("/calendar", (req, res) => {
-  const data = req.store.read();
+app.get("/calendar", async (req, res) => {
+  const data = await req.store.read();
   const base = req.query.month && /^\d{4}-\d{2}$/.test(req.query.month) ? new Date(`${req.query.month}-01T00:00:00`) : new Date();
   const first = new Date(base.getFullYear(), base.getMonth(), 1);
   const gridStart = new Date(first);
@@ -314,8 +397,8 @@ app.get("/calendar", (req, res) => {
   res.render("calendar", { title: "カレンダー", days, items, base, prev, next, today: dateKey(new Date()) });
 });
 
-app.get("/analytics", (req, res) => {
-  const events = req.store.list("events");
+app.get("/analytics", async (req, res) => {
+  const events = await req.store.list("events");
   const now = new Date();
   const dayStart = startOfDay(now);
   const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
@@ -326,36 +409,52 @@ app.get("/analytics", (req, res) => {
   res.render("analytics", { title: "時間分析", daily: analysis(events, dayStart, dayEnd), weekly: analysis(events, weekStart, weekEnd), monthly: analysis(events, monthStart, monthEnd) });
 });
 
-app.get("/settings", (req, res) => res.render("settings", { title: "設定", periods: req.store.read().settings.periods }));
-app.post("/settings/periods", (req, res) => {
+app.get("/settings", async (req, res) => res.render("settings", { title: "設定", periods: (await req.store.read()).settings.periods }));
+app.post("/settings/periods", async (req, res) => {
   const starts = Array.isArray(req.body.startTime) ? req.body.startTime : [req.body.startTime];
   const ends = Array.isArray(req.body.endTime) ? req.body.endTime : [req.body.endTime];
   const periods = starts.map((startTime, index) => ({ number: index + 1, startTime, endTime: ends[index] })).filter((item) => item.startTime && item.endTime);
-  if (!periods.length || periods.some((item) => item.endTime <= item.startTime)) return res.status(400).send("各時限の終了時刻は開始時刻より後にしてください。");
-  const latestUsedPeriod = Math.max(0, ...req.store.list("classes").map((item) => Number(item.endPeriod || item.period)));
+  if (!periods.length || periods.length > 15 || periods.some((item) => !validTime(item.startTime) || !validTime(item.endTime) || item.endTime <= item.startTime)) {
+    return res.status(400).send("時限は15個以内で、各終了時刻を開始時刻より後にしてください。");
+  }
+  const latestUsedPeriod = Math.max(0, ...(await req.store.list("classes")).map((item) => Number(item.endPeriod || item.period)));
   if (periods.length < latestUsedPeriod) return res.status(400).send(`${latestUsedPeriod}限を使用している授業があります。先にその授業を変更してから時限数を減らしてください。`);
-  req.store.saveSettings({ periods });
+  await req.store.saveSettings({ periods });
   res.redirect("/settings");
 });
-app.post("/settings/schedule-step", (req, res) => {
+app.post("/settings/schedule-step", async (req, res) => {
   const scheduleStep = Number(req.body.scheduleStep);
   if (![5, 10, 15, 30, 60].includes(scheduleStep)) return res.status(400).send("利用できない時刻の刻み幅です。");
-  req.store.saveSettings({ scheduleStep });
+  await req.store.saveSettings({ scheduleStep });
   res.redirect("/settings");
 });
-app.post("/settings/quick-times", (req, res) => {
+app.post("/settings/quick-times", async (req, res) => {
   const titles = Array.isArray(req.body.quickTitle) ? req.body.quickTitle : [req.body.quickTitle];
   const quickCategories = Array.isArray(req.body.quickCategory) ? req.body.quickCategory : [req.body.quickCategory];
   const starts = Array.isArray(req.body.quickStartTime) ? req.body.quickStartTime : [req.body.quickStartTime];
   const ends = Array.isArray(req.body.quickEndTime) ? req.body.quickEndTime : [req.body.quickEndTime];
-  const quickTimes = titles.map((title, index) => ({ title: title?.trim(), category: quickCategories[index], startTime: starts[index], endTime: ends[index] })).filter((item) => item.title && item.startTime && item.endTime);
-  if (quickTimes.some((item) => !categories.includes(item.category))) return res.status(400).send("利用できないカテゴリが含まれています。");
+  const quickTimes = titles.map((title, index) => ({
+    title: cleanText(title, 100),
+    category: quickCategories[index],
+    startTime: starts[index],
+    endTime: ends[index]
+  })).filter((item) => item.title && item.startTime && item.endTime);
+  if (quickTimes.length > 12) return res.status(400).send("よく使う時間帯は12個以内にしてください。");
+  if (quickTimes.some((item) => !categories.includes(item.category) || !(validTime(item.startTime) || item.startTime === "24:00") || !(validTime(item.endTime) || item.endTime === "24:00"))) {
+    return res.status(400).send("利用できないカテゴリまたは時刻が含まれています。");
+  }
   if (!quickTimes.length || quickTimes.some((item) => item.endTime === item.startTime)) return res.status(400).send("開始時刻と終了時刻は異なる時刻にしてください。終了が開始より早い場合は翌日の終了として扱われます。");
-  req.store.saveSettings({ quickTimes });
+  await req.store.saveSettings({ quickTimes });
   res.redirect("/settings");
 });
 
 app.use((req, res) => res.status(404).render("not-found", { title: "ページが見つかりません" }));
+
+app.use((error, req, res, next) => {
+  if (error instanceof InputError) return res.status(400).send(error.message);
+  console.error(error);
+  res.status(500).send("サーバーで問題が発生しました。");
+});
 
 app.listen(PORT, () => console.log(`Student Life Manager: http://localhost:${PORT}`));
 
