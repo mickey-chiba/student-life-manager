@@ -26,14 +26,19 @@ npm start
 
 `SESSION_SECRET` やデータベースの接続情報は、GitHubに直接書かず、公開サービスの環境変数に設定してください。
 
-## Renderで公開する手順
+## Renderで公開する
 
-1. RenderでGitHubリポジトリを接続します。
-2. **Blueprint** を新規作成し、このリポジトリの `render.yaml` を選びます。
-3. 作成を実行すると、WebサービスとPostgreSQL、`SESSION_SECRET` が設定されます。
-4. デプロイ完了後に表示される `https://...onrender.com` のURLを開きます。
+Renderの画面でどのボタンを押すかを含む詳しい手順は、[Render公開手順書](RENDER_GUIDE.md) を参照してください。
+
+このリポジトリの `render.yaml` を使うと、次のものが自動作成されます。
+
+- アプリを動かすWebサービス
+- データを保存するPostgreSQL
+- ログイン状態を安全に保つ `SESSION_SECRET`
 
 公開先ではHTTPSへの転送、Secure Cookie、セキュリティ用HTTPヘッダー、ログイン回数制限、入力値チェックが有効になります。
+
+> Renderの無料PostgreSQLは作成から30日で期限切れになります。継続利用する場合は、期限前にRender上でデータベースを有料プランへ変更してください。
 
 ## データについて
 
