@@ -30,7 +30,11 @@
         <a href="<%= href %>" class="<%= active ? 'active' : '' %>"><span class="nav-icon"><%= icon %></span><%= label %></a>
       <% }) %>
     </nav>
-    <div class="sidebar-foot"><span class="avatar">MI</span><div><strong>マイページ</strong><small>学生ライフ管理</small></div></div>
+    <div class="sidebar-foot">
+      <span class="avatar"><%= (currentUser && currentUser.name ? currentUser.name.slice(0, 2) : "MI").toUpperCase() %></span>
+      <div><strong><%= currentUser ? currentUser.name : "マイページ" %></strong><small>学生ライフ管理</small></div>
+      <form method="post" action="/logout" class="logout-form"><button type="submit" title="ログアウト" aria-label="ログアウト">⎋</button></form>
+    </div>
   </aside>
   <main>
     <header class="topbar">

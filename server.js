@@ -193,7 +193,7 @@ function calendarItems(data) {
 }
 
 app.get("/", (req, res) => {
-  const data = store.read();
+  const data = req.store.read();
   const today = dateKey(new Date());
   const now = new Date();
   const soon = new Date(now);
@@ -213,30 +213,30 @@ app.get("/", (req, res) => {
 });
 
 app.get("/timetable", (req, res) => {
-  const classes = store.list("classes");
-  res.render("timetable", { title: "時間割", classes, editItem: req.query.edit ? store.find("classes", req.query.edit) : null });
+  const classes = req.store.list("classes");
+  res.render("timetable", { title: "時間割", classes, editItem: req.query.edit ? req.store.find("classes", req.query.edit) : null });
 });
 app.post("/timetable", (req, res) => {
   const startPeriod = Number(req.body.startPeriod);
   const endPeriod = Number(req.body.endPeriod);
   if (endPeriod < startPeriod) return res.status(400).send("終了時限は開始時限以降にしてください。");
-  store.save("classes", { id: req.body.id, subject: req.body.subject, weekday: req.body.weekday, period: String(startPeriod), startPeriod, endPeriod, room: req.body.room, teacher: req.body.teacher, memo: req.body.memo });
+  req.store.save("classes", { id: req.body.id, subject: req.body.subject, weekday: req.body.weekday, period: String(startPeriod), startPeriod, endPeriod, room: req.body.room, teacher: req.body.teacher, memo: req.body.memo });
   res.redirect("/timetable");
 });
 app.post("/timetable/:id/move", (req, res) => {
-  const lesson = store.find("classes", req.params.id);
+  const lesson = req.store.find("classes", req.params.id);
   if (!lesson) return res.status(404).json({ message: "授業が見つかりません。" });
 
   const weekday = req.body.weekday;
   const startPeriod = Number(req.body.startPeriod);
   const periodCount = Number(lesson.endPeriod || lesson.period) - Number(lesson.startPeriod || lesson.period) + 1;
   const endPeriod = startPeriod + periodCount - 1;
-  const periodLimit = store.read().settings.periods.length;
+  const periodLimit = req.store.read().settings.periods.length;
   if (!weekdays.slice(0, 6).includes(weekday) || startPeriod < 1 || endPeriod > periodLimit) {
     return res.status(400).json({ message: "複数コマ分を含めると、時限の範囲を超えてしまいます。" });
   }
 
-  const overlaps = store.list("classes").some((item) => {
+  const overlaps = req.store.list("classes").some((item) => {
     if (item.id === lesson.id || item.weekday !== weekday) return false;
     const itemStart = Number(item.startPeriod || item.period);
     const itemEnd = Number(item.endPeriod || item.period);
@@ -244,18 +244,18 @@ app.post("/timetable/:id/move", (req, res) => {
   });
   if (overlaps) return res.status(409).json({ message: "移動先の時間には、すでに別の授業があります。" });
 
-  store.save("classes", { ...lesson, weekday, period: String(startPeriod), startPeriod, endPeriod });
+  req.store.save("classes", { ...lesson, weekday, period: String(startPeriod), startPeriod, endPeriod });
   res.json({ ok: true });
 });
 
 function listRoute(pathname, collection, title, dateField) {
   app.get(pathname, (req, res) => {
-    const items = store.list(collection).sort((a, b) => new Date(a[dateField]) - new Date(b[dateField]));
+    const items = req.store.list(collection).sort((a, b) => new Date(a[dateField]) - new Date(b[dateField]));
     res.render(collection, {
       title,
       items,
-      editItem: req.query.edit ? store.find(collection, req.query.edit) : null,
-      classes: collection === "tests" ? store.list("classes") : []
+      editItem: req.query.edit ? req.store.find(collection, req.query.edit) : null,
+      classes: collection === "tests" ? req.store.list("classes") : []
     });
   });
 }
@@ -264,15 +264,15 @@ listRoute("/tests", "tests", "テスト管理", "examAt");
 listRoute("/events", "events", "予定管理", "startAt");
 
 app.post("/assignments", (req, res) => {
-  store.save("assignments", { id: req.body.id, title: req.body.title, subject: req.body.subject, deadline: req.body.deadline, progress: Number(req.body.progress || 0), status: req.body.status, memo: req.body.memo });
+  req.store.save("assignments", { id: req.body.id, title: req.body.title, subject: req.body.subject, deadline: req.body.deadline, progress: Number(req.body.progress || 0), status: req.body.status, memo: req.body.memo });
   res.redirect("/assignments");
 });
 app.post("/tests", (req, res) => {
-  store.save("tests", { id: req.body.id, subject: req.body.subject, examAt: req.body.examAt, scope: req.body.scope, memo: req.body.memo });
+  req.store.save("tests", { id: req.body.id, subject: req.body.subject, examAt: req.body.examAt, scope: req.body.scope, memo: req.body.memo });
   res.redirect("/tests");
 });
 app.post("/events", (req, res) => {
-  const scheduleStep = store.read().settings.scheduleStep;
+  const scheduleStep = req.store.read().settings.scheduleStep;
   const toMinutes = (time) => time === "24:00" ? 1440 : Number(time?.slice(0, 2)) * 60 + Number(time?.slice(3, 5));
   const startMinutes = toMinutes(req.body.startTime);
   const endMinutes = toMinutes(req.body.endTime);
@@ -283,19 +283,19 @@ app.post("/events", (req, res) => {
   const endDate = req.body.nextDay === "1" ? nextDateKey(req.body.eventDate) : req.body.eventDate;
   const endAt = combineDateAndTime(endDate, req.body.endTime);
   if (new Date(endAt) <= new Date(startAt)) return res.status(400).send("終了時刻は開始時刻より後にしてください。");
-  store.save("events", { id: req.body.id, title: req.body.title, startAt, endAt, category: req.body.category, memo: req.body.memo });
+  req.store.save("events", { id: req.body.id, title: req.body.title, startAt, endAt, category: req.body.category, memo: req.body.memo });
   res.redirect("/events");
 });
 
 app.post("/:collection/:id/delete", (req, res) => {
   const routes = { classes: "timetable", assignments: "assignments", tests: "tests", events: "events" };
   if (!routes[req.params.collection]) return res.sendStatus(404);
-  store.remove(req.params.collection, req.params.id);
+  req.store.remove(req.params.collection, req.params.id);
   res.redirect(`/${routes[req.params.collection]}`);
 });
 
 app.get("/calendar", (req, res) => {
-  const data = store.read();
+  const data = req.store.read();
   const base = req.query.month && /^\d{4}-\d{2}$/.test(req.query.month) ? new Date(`${req.query.month}-01T00:00:00`) : new Date();
   const first = new Date(base.getFullYear(), base.getMonth(), 1);
   const gridStart = new Date(first);
@@ -315,7 +315,7 @@ app.get("/calendar", (req, res) => {
 });
 
 app.get("/analytics", (req, res) => {
-  const events = store.list("events");
+  const events = req.store.list("events");
   const now = new Date();
   const dayStart = startOfDay(now);
   const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
@@ -326,21 +326,21 @@ app.get("/analytics", (req, res) => {
   res.render("analytics", { title: "時間分析", daily: analysis(events, dayStart, dayEnd), weekly: analysis(events, weekStart, weekEnd), monthly: analysis(events, monthStart, monthEnd) });
 });
 
-app.get("/settings", (req, res) => res.render("settings", { title: "設定", periods: store.read().settings.periods }));
+app.get("/settings", (req, res) => res.render("settings", { title: "設定", periods: req.store.read().settings.periods }));
 app.post("/settings/periods", (req, res) => {
   const starts = Array.isArray(req.body.startTime) ? req.body.startTime : [req.body.startTime];
   const ends = Array.isArray(req.body.endTime) ? req.body.endTime : [req.body.endTime];
   const periods = starts.map((startTime, index) => ({ number: index + 1, startTime, endTime: ends[index] })).filter((item) => item.startTime && item.endTime);
   if (!periods.length || periods.some((item) => item.endTime <= item.startTime)) return res.status(400).send("各時限の終了時刻は開始時刻より後にしてください。");
-  const latestUsedPeriod = Math.max(0, ...store.list("classes").map((item) => Number(item.endPeriod || item.period)));
+  const latestUsedPeriod = Math.max(0, ...req.store.list("classes").map((item) => Number(item.endPeriod || item.period)));
   if (periods.length < latestUsedPeriod) return res.status(400).send(`${latestUsedPeriod}限を使用している授業があります。先にその授業を変更してから時限数を減らしてください。`);
-  store.saveSettings({ periods });
+  req.store.saveSettings({ periods });
   res.redirect("/settings");
 });
 app.post("/settings/schedule-step", (req, res) => {
   const scheduleStep = Number(req.body.scheduleStep);
   if (![5, 10, 15, 30, 60].includes(scheduleStep)) return res.status(400).send("利用できない時刻の刻み幅です。");
-  store.saveSettings({ scheduleStep });
+  req.store.saveSettings({ scheduleStep });
   res.redirect("/settings");
 });
 app.post("/settings/quick-times", (req, res) => {
@@ -351,7 +351,7 @@ app.post("/settings/quick-times", (req, res) => {
   const quickTimes = titles.map((title, index) => ({ title: title?.trim(), category: quickCategories[index], startTime: starts[index], endTime: ends[index] })).filter((item) => item.title && item.startTime && item.endTime);
   if (quickTimes.some((item) => !categories.includes(item.category))) return res.status(400).send("利用できないカテゴリが含まれています。");
   if (!quickTimes.length || quickTimes.some((item) => item.endTime === item.startTime)) return res.status(400).send("開始時刻と終了時刻は異なる時刻にしてください。終了が開始より早い場合は翌日の終了として扱われます。");
-  store.saveSettings({ quickTimes });
+  req.store.saveSettings({ quickTimes });
   res.redirect("/settings");
 });
 

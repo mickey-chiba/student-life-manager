@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#252c4a">
+  <title><%= title %> | Campus Compass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: #252c4a; }
+    .auth-card { width: 100%; max-width: 380px; background: #fff; border-radius: 18px; padding: 36px 32px; box-shadow: 0 24px 60px rgba(20, 25, 50, .35); }
+    .auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+    .auth-brand .brand-mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #5267df; color: #fff; font-weight: 700; font-size: 20px; }
+    .auth-brand strong { font-size: 18px; }
+    .auth-card h1 { font-size: 22px; margin: 0 0 4px; }
+    .auth-card p.lead { margin: 0 0 24px; color: #7c8798; font-size: 14px; }
+    .auth-card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #3a4256; }
+    .auth-card input { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1px solid #d8dced; border-radius: 10px; font-size: 15px; margin-bottom: 18px; font-family: inherit; }
+    .auth-card input:focus { outline: none; border-color: #5267df; box-shadow: 0 0 0 3px rgba(82, 103, 223, .15); }
+    .auth-card button { width: 100%; padding: 13px; border: none; border-radius: 10px; background: #5267df; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .auth-card button:hover { background: #4255c4; }
+    .auth-error { background: #fdecec; color: #c0392b; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 18px; }
+    .auth-switch { margin-top: 20px; text-align: center; font-size: 13px; color: #7c8798; }
+    .auth-switch a { color: #5267df; font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="brand-mark">C</span><span>Campus <strong>Compass</strong></span></div>
+      <% if (mode === "register") { %>
+        <h1>新規登録</h1>
+        <p class="lead">名前とパスワードを決めると、あなた専用の管理ページが作られます。</p>
+      <% } else { %>
+        <h1>ログイン</h1>
+        <p class="lead">登録した名前とパスワードでログインしてください。</p>
+      <% } %>
+
+      <% if (error) { %><div class="auth-error"><%= error %></div><% } %>
+
+      <form method="post" action="<%= mode === 'register' ? '/register' : '/login' %>">
+        <label for="name">名前</label>
+        <input id="name" name="name" type="text" value="<%= name %>" autocomplete="username" required autofocus>
+        <label for="password">パスワード<% if (mode === "register") { %><span style="font-weight:400;color:#7c8798;">（4文字以上）</span><% } %></label>
+        <input id="password" name="password" type="password" autocomplete="<%= mode === 'register' ? 'new-password' : 'current-password' %>" required>
+        <button type="submit"><%= mode === "register" ? "登録して始める" : "ログイン" %></button>
+      </form>
+
+      <div class="auth-switch">
+        <% if (mode === "register") { %>
+          すでにアカウントがありますか？ <a href="/login">ログイン</a>
+        <% } else { %>
+          はじめての方は <a href="/register">新規登録</a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
