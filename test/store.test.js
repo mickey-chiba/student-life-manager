@@ -8,7 +8,6 @@ process.env.DATA_FILE = path.join(os.tmpdir(), `student-life-manager-test-${proc
 const store = require("../lib/store");
 
 test.after(() => fs.rmSync(process.env.DATA_FILE, { force: true }));
-
 const uniqueName = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 test("a new user starts with empty schedule data", async () => {
@@ -22,21 +21,19 @@ test("a new user starts with empty schedule data", async () => {
   assert.ok(data.settings.periods.length > 0);
   assert.ok([5, 10, 15, 30, 60].includes(data.settings.scheduleStep));
   assert.deepEqual(data.settings.quickTimes, []);
+  assert.equal(data.settings.hourlyWage, 1100);
+  assert.equal(data.settings.nightBonusRate, 25);
+  assert.equal(data.settings.transportPerShift, 0);
 });
 
 test("login succeeds with the right password and fails otherwise", async () => {
-  const name = uniqueName("login");
-  await store.createUser(name, "pw1234");
+  const name = uniqueName("login"); await store.createUser(name, "pw1234");
   assert.ok(await store.verifyUser(name, "pw1234"));
   assert.equal(await store.verifyUser(name, "wrong-password"), null);
   assert.equal(await store.verifyUser("does-not-exist", "pw1234"), null);
 });
 
-test("the same name cannot be registered twice", async () => {
-  const name = uniqueName("dup");
-  await store.createUser(name, "pw1234");
-  await assert.rejects(() => store.createUser(name, "another"), /USER_EXISTS/);
-});
+test("the same name cannot be registered twice", async () => { const name = uniqueName("dup"); await store.createUser(name, "pw1234"); await assert.rejects(() => store.createUser(name, "another"), /USER_EXISTS/); });
 
 test("each user's data is isolated from others", async () => {
   const a = store.forUser((await store.createUser(uniqueName("iso-a"), "pw1234")).id);
