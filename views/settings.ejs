@@ -1,5 +1,15 @@
 <%- include("partials/head") %>
 <section class="panel period-settings">
+  <div class="panel-head"><div><p class="eyebrow">SALARY</p><h2>予想給料の設定</h2></div><a class="button ghost" href="/salary">給料ページを見る</a></div>
+  <p class="settings-description">アルバイト予定と打刻実績から給料を計算します。深夜時間帯は22:00〜翌5:00です。</p>
+  <form method="post" action="/settings/salary" class="salary-settings-form">
+    <label>通常時給（円）<input required min="0" type="number" name="hourlyWage" value="<%= settings.hourlyWage %>"></label>
+    <label>深夜割増率（%）<input required min="0" type="number" name="nightBonusRate" value="<%= settings.nightBonusRate %>"></label>
+    <label>1勤務の交通費（円）<input required min="0" type="number" name="transportPerShift" value="<%= settings.transportPerShift %>"></label>
+    <button class="button primary" type="submit">給料設定を保存</button>
+  </form>
+</section>
+<section class="panel period-settings">
   <div class="panel-head"><div><p class="eyebrow">SCHOOL SCHEDULE</p><h2>学校の時限設定</h2></div><button class="button ghost" type="button" data-add-period>＋ 時限を追加</button></div>
   <p class="settings-description">学校に合わせてコマ数と各時限の開始・終了時刻を設定できます。変更内容は時間割とテスト開始時刻に反映されます。</p>
   <form method="post" action="/settings/periods" class="period-form">
