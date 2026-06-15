@@ -1,6 +1,6 @@
 <%- include("partials/head") %>
 <section class="panel period-settings">
-  <div class="panel-head"><div><p class="eyebrow">SALARY</p><h2>予想給料の設定</h2></div><a class="button ghost" href="/salary">給料ページを見る</a></div>
+  <div class="panel-head"><div><p class="eyebrow">MONEY ANALYSIS</p><h2>給料設定</h2></div><a class="button ghost" href="/salary">お金分析を見る</a></div>
   <p class="settings-description">アルバイト予定と打刻実績から給料を計算します。深夜時間帯は22:00〜翌5:00です。</p>
   <form method="post" action="/settings/salary" class="salary-settings-form">
     <label>通常時給（円）<input required min="0" type="number" name="hourlyWage" value="<%= settings.hourlyWage %>"></label>
