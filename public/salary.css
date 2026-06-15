@@ -1,0 +1,21 @@
+.salary-settings-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.salary-settings-form label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.salary-settings-form input { width: 150px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fafafe; font-size: 11px; }
+.clock-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.clock-actions form { margin: 0; }
+.clock-actions button { border: 0; border-radius: 7px; padding: 7px 10px; background: #e7f7f2; color: #16806d; font-size: 9px; font-weight: 700; cursor: pointer; }
+.clock-actions button.clock-end { background: #fff0ee; color: var(--coral); }
+.clock-actions span { color: var(--mint); font-size: 9px; font-weight: 700; }
+.salary-list { display: grid; gap: 10px; }
+.salary-list article { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.salary-list h3 { margin: 7px 0 4px; font-size: 13px; }
+.salary-list p,.salary-list small { margin: 0; color: var(--muted); font-size: 9px; }
+.salary-amount { display: grid; gap: 5px; text-align: right; white-space: nowrap; }
+.salary-amount span { color: var(--muted); font-size: 9px; }
+.salary-amount strong { color: var(--navy); font-size: 13px; }
+@media (max-width: 760px) {
+  .salary-settings-form { align-items: stretch; flex-direction: column; }
+  .salary-settings-form input,.salary-settings-form .button { width: 100%; font-size: 16px; }
+  .salary-list article { align-items: flex-start; flex-direction: column; }
+  .salary-amount { text-align: left; }
+}
