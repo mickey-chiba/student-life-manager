@@ -1,0 +1,18 @@
+<%- include("partials/head") %>
+<section class="analytics-intro salary-hero">
+  <p class="eyebrow">SALARY FORECAST</p>
+  <h2><%= month.replace("-", "年") %>月の予想給料</h2>
+  <p>アルバイト予定と打刻実績から自動計算します。税金などは含まれない目安金額です。</p>
+</section>
+<div class="stats-grid">
+  <article class="stat-card amber"><span>予想給料</span><strong>¥<%= forecastPay.toLocaleString() %></strong></article>
+  <article class="stat-card mint"><span>実績給料</span><strong>¥<%= actualPay.toLocaleString() %></strong></article>
+  <article class="stat-card cobalt"><span>予定勤務時間</span><strong><%= forecastHours.toFixed(1) %></strong><small>時間</small></article>
+  <article class="stat-card coral"><span>実働時間</span><strong><%= actualHours.toFixed(1) %></strong><small>時間</small></article>
+</div>
+<section class="panel">
+  <div class="calendar-toolbar"><a class="button ghost" href="/salary?month=<%= prev %>">← 前月</a><div><p class="eyebrow">MONTH</p><h2><%= month.replace("-", "年") %>月</h2></div><a class="button ghost" href="/salary?month=<%= next %>">翌月 →</a></div>
+  <% if (!shifts.length) { %><%- include("partials/empty", { message: "この月のアルバイト予定はありません" }) %><% } %>
+  <div class="salary-list"><% shifts.forEach(item => { %><article><div><span class="tag" style="--tag:#e38a46"><%= formatDate(item.startAt) %></span><h3><%= item.title %></h3><p>予定 <%= formatTime(item.startAt) %>〜<%= formatTime(item.endAt) %> · 深夜 <%= item.forecast.nightHours.toFixed(1) %>時間</p><% if (item.actualEndAt) { %><small>実績 <%= formatTime(item.actualStartAt) %>〜<%= formatTime(item.actualEndAt) %> · 休憩 <%= item.actual.breakHours.toFixed(1) %>時間</small><% } %></div><div class="salary-amount"><span>予想 ¥<%= item.forecast.pay.toLocaleString() %></span><strong><%= item.actualEndAt ? `実績 ¥${item.actual.pay.toLocaleString()}` : "未打刻" %></strong></div></article><% }) %></div>
+</section>
+<%- include("partials/foot") %>
