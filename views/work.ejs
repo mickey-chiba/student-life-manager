@@ -1,0 +1,25 @@
+<%- include("partials/head") %>
+<section class="analytics-intro work-intro">
+  <p class="eyebrow">PART-TIME WORK</p>
+  <h2>勤務打刻</h2>
+  <p>アルバイト予定の出勤・休憩・退勤をここで記録します。</p>
+</section>
+<section class="panel">
+  <div class="panel-head"><div><p class="eyebrow">SHIFTS</p><h2>アルバイト予定</h2></div><a class="button primary" href="/events/new">＋ シフトを追加</a></div>
+  <% if (!shifts.length) { %><%- include("partials/empty", { message: "アルバイト予定はまだ登録されていません" }) %><% } %>
+  <div class="work-list"><% shifts.forEach(item => { const overnight = item.startAt.slice(0,10) !== item.endAt.slice(0,10); %>
+    <article class="work-card">
+      <div><span class="tag" style="--tag:#e38a46"><%= formatDate(item.startAt) %></span><h3><%= item.title %></h3><p><%= formatTime(item.startAt) %>〜<%= overnight ? "翌 " : "" %><%= formatTime(item.endAt) %></p><small><%= item.memo %></small></div>
+      <div class="work-clock"><div class="clock-actions">
+        <% if (!item.actualStartAt) { %><form method="post" action="/events/<%= item.id %>/clock/start"><button type="submit">出勤する</button></form>
+        <% } else if (!item.actualEndAt) { %>
+          <% if (!item.breakStartedAt) { %><form method="post" action="/events/<%= item.id %>/clock/break-start"><button type="submit">休憩開始</button></form>
+          <% } else { %><form method="post" action="/events/<%= item.id %>/clock/break-end"><button type="submit">休憩終了</button></form><% } %>
+          <form method="post" action="/events/<%= item.id %>/clock/end"><button class="clock-end" type="submit">退勤する</button></form>
+        <% } else { %><span>勤務実績：<%= formatTime(item.actualStartAt) %>〜<%= formatTime(item.actualEndAt) %></span><% } %>
+        <form method="post" action="/events/<%= item.id %>/clock/planned"><button type="submit">予定時刻を実績にする</button></form>
+      </div></div>
+    </article>
+  <% }) %></div>
+</section>
+<%- include("partials/foot") %>
